@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using LibraryManager.DTOs;
 using LibraryManager.Models;
-using LibraryManager.DTOs;
+using LibraryManager.Services;
+using Microsoft.AspNetCore.Mvc;
 
 namespace LibraryManager.Controllers
 {
@@ -8,63 +9,37 @@ namespace LibraryManager.Controllers
     [Route("api/[controller]")]
     public class LibraryController : ControllerBase
     {
-        private static readonly List<LibraryItem> _libraryItems = new();
-        private static int _nextId = 1;
+        private readonly ILibraryService _service;
+
+        public LibraryController(ILibraryService service) => _service = service;
 
         [HttpGet]
-        public ActionResult<IEnumerable<LibraryItem>> GetAll()
-        {
-            return Ok(_libraryItems);
-        }
+        public ActionResult<IEnumerable<LibraryItem>> GetAll() =>
+            Ok(_service.GetAll());
 
         [HttpGet("{id}")]
         public ActionResult<LibraryItem> GetById(int id)
         {
-            var item = _libraryItems.FirstOrDefault(x => x.Id == id);
-            if (item == null)
-                return NotFound();
-
+            var item = _service.GetById(id);
+            if (item is null) return NotFound();
             return Ok(item);
         }
 
         [HttpPost]
         public ActionResult<LibraryItem> Create(LibraryItemDto dto)
         {
-            var newItem = new LibraryItem
-            {
-                Id = _nextId++,
-                Title = dto.Title,
-                Author = dto.Author,
-                YearPublished = dto.YearPublished
-            };
-
-            _libraryItems.Add(newItem);
-            return CreatedAtAction(nameof(GetById), new { id = newItem.Id }, newItem);
+            var item = _service.Create(dto);
+            if (item is null)
+                return BadRequest("Library is full");
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
         }
 
         [HttpPut("{id}")]
-        public ActionResult Update(int id, LibraryItemDto dto)
-        {
-            var item = _libraryItems.FirstOrDefault(x => x.Id == id);
-            if (item == null)
-                return NotFound();
-
-            item.Title = dto.Title;
-            item.Author = dto.Author;
-            item.YearPublished = dto.YearPublished;
-
-            return NoContent();
-        }
+        public IActionResult Update(int id, LibraryItemDto dto) =>
+            _service.Update(id, dto) ? NoContent() : NotFound();
 
         [HttpDelete("{id}")]
-        public ActionResult Delete(int id)
-        {
-            var item = _libraryItems.FirstOrDefault(x => x.Id == id);
-            if (item == null)
-                return NotFound();
-
-            _libraryItems.Remove(item);
-            return NoContent();
-        }
+        public IActionResult Delete(int id) =>
+            _service.Delete(id) ? NoContent() : NotFound();
     }
 }
